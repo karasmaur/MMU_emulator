@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #define VIRTUAL_SIZE 128
 #define PHYSICAL_SIZE 8
@@ -12,25 +13,28 @@ int secondary_memory[SECONDARY_SIZE][2];
 
 // Functions:
 void mmu(int pid, int pages, int selector){
+    printf("MMU function\n");
     // selector is used to define if the MMU will create pages or find them.
     // selector: 0 > Create pages// selector: 1 > Load page.
     if(selector == 0){
         // Virtual Memory
-        for (int i = 0; i < pages; ++i) {
-            for (int j = 0; j < VIRTUAL_SIZE; ++j) {
-                if(virtual_memory[j] != NULL){
+        for (int i = 0; i < pages; i++) {
+            for (int j = 0; j < VIRTUAL_SIZE; j++) {
+                if(virtual_memory[j][0] == NULL){
                     virtual_memory[j][0] = pid; // Process ID
                     virtual_memory[j][1] = i; // Page ID
+                    break;
                 }
             }
         }
 
         // Secondary Memory
-        for (int i = 0; i < pages; ++i) {
-            for (int j = 0; j < SECONDARY_SIZE; ++j) {
-                if(secondary_memory[j] != NULL){
+        for (int i = 0; i < pages; i++) {
+            for (int j = 0; j < SECONDARY_SIZE; j++) {
+                if(secondary_memory[j][0] == NULL){
                     secondary_memory[j][0] = pid; // Process ID
                     secondary_memory[j][1] = i; // Page ID
+                    break;
                 }
             }
         }
@@ -42,14 +46,16 @@ void mmu(int pid, int pages, int selector){
 
 }
 
-void *process(void *id){
+int *process(void *id) {
     // Creates the process and uses the secondary_memory to store the data, each position of the array it's a page.
     // Randomly the process will request a page from the MMU so it can execute from memory.
     int pages = 12;
-    int pid = (int *)id;
+    //int pid = *((int *) id);  TODO: this is causing segmentation fault, SOLVE THIS!
+    //printf("%d\n", pid);
 
-    mmu(pid, pages, 0);
+    mmu(1, pages, 0);
 
+    return 0;
 }
 
 // Main:
@@ -62,6 +68,24 @@ int main() {
     (void) pthread_create(&processes[0], NULL, process, NULL);
 
     (void) pthread_join(processes[0], NULL);
+
+    printf("Virtual Memory:\n");
+    printf("PID - Page:\n");
+    for (int i = 0; i < VIRTUAL_SIZE; i++) {
+        printf(" %d -  %d\n", virtual_memory[i][0], virtual_memory[i][1]);
+    }
+
+    printf("Physical Memory:\n");
+    printf("PID - Page:\n");
+    for (int i = 0; i < PHYSICAL_SIZE; i++) {
+        printf(" %d -  %d\n", physical_memory[i][0], physical_memory[i][1]);
+    }
+
+    printf("Secondary Memory(HD):\n");
+    printf("PID - Page:\n");
+    for (int i = 0; i < SECONDARY_SIZE; i++) {
+        printf(" %d -  %d\n", secondary_memory[i][0], secondary_memory[i][1]);
+    }
 
     return 0;
 }
