@@ -40,15 +40,32 @@ void mmu_create(int pid, int pages){
     }
 }
 
-void mmu_load(int pid, int page){
+int mmu_load(int pid, int page){
+    // Search physical memory for the page
+    for (int i = 0; i < PHYSICAL_SIZE; ++i) {
+        if(physical_memory[i][0] == pid && physical_memory[i][1]){
+            //Found page on physical memory
+            printf("Found page on physical memory: %d\n", physical_memory[i][1]);
+            return physical_memory[i][1];
+        }
+    }
 
+    // If page isn't in the physical memory, then it has to load it on it.
+    for (int j = 0; j < SECONDARY_SIZE; ++j) {
+        if(secondary_memory[i][0] == pid && secondary_memory[i][1]){
+
+        } else {
+            printf("Page %d wasn't found in secondary memory!\n", page);
+        }
+
+    }
 }
 
 int *process(void *id) {
     // Creates the process and uses the secondary_memory to store the data, each position of the array it's a page.
     // Randomly the process will request a page from the MMU so it can execute from memory.
     int pages = 12;
-    //int pid = *((int *) id);  TODO: this is causing segmentation fault, SOLVE THIS!
+    //int pid = *((int *) id); // TODO: this is causing segmentation fault, SOLVE THIS!
     //printf("%d\n", pid);
 
     mmu_create(1, pages);
@@ -57,10 +74,11 @@ int *process(void *id) {
 
     // Requests the pages.
     while(1){
+        sleep(rand() % 5);
+
         int random_page = rand() % pages;
 
         mmu_load(1, random_page);
-
     }
 
     return 0;
@@ -73,7 +91,7 @@ int main() {
 
     pid[0] = 1; // Setting pid of the first process to 1.
 
-    (void) pthread_create(&processes[0], NULL, process, NULL);
+    (void) pthread_create(&processes[0], NULL, process, (void*) pid[0]);
 
 
     printf("Virtual Memory:\n");
