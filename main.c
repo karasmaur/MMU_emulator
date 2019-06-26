@@ -27,7 +27,7 @@ void mmu_create(int pid, int pages){
     // Virtual Memory
     for (int i = 0; i < pages; i++) {
         for (int j = 0; j < VIRTUAL_SIZE; j++) {
-            if(virtual_memory[j][0] == NULL){
+            if(virtual_memory[j][0] == 0){
                 virtual_memory[j][0] = pid; // Process ID
                 virtual_memory[j][1] = i; // Page ID
                 break;
@@ -37,7 +37,7 @@ void mmu_create(int pid, int pages){
     // Secondary Memory
     for (int i = 0; i < pages; i++) {
         for (int j = 0; j < SECONDARY_SIZE; j++) {
-            if(secondary_memory[j][0] == NULL){
+            if(secondary_memory[j][0] == 0){
                 secondary_memory[j][0] = pid; // Process ID
                 secondary_memory[j][1] = i; // Page ID  -- + RELOCATION_REGISTER
                 break;
@@ -52,34 +52,37 @@ int mmu_load(int pid, int page){
         if(physical_memory[i][0] == pid && physical_memory[i][1] == page){
             //Found page on physical memory
             printf("Found page on physical memory: %d\n", physical_memory[i][1]);
-            physical_memory[i][2]++ // Increments the use count.
-            return physical_memory[i][1];
+            physical_memory[i][2]++; // Increments the use count.
+            return 1;
         }
     }
 
+    printf("Page is not in physical memory!\n");
     // If page isn't in the physical memory, then it has to load it on it.
     for (int i = 0; i < SECONDARY_SIZE; ++i) {
         if(secondary_memory[i][0] == pid && secondary_memory[i][1] == page){
             //Checks if the physical memory has space to accomodate the page.
             for (int j = 0; j < PHYSICAL_SIZE; j++) {
-                if(physical_memory[i][0] == NULL){
-                    return swap_in_mem(j, i);
+                if(physical_memory[j][0] == 0){
+                    swap_in_mem(j, i);
+                    return 1;
                 }
             }
             // With no space in the physical memory, we have to find a victim to remove.
             int empty_space = find_victim();
-            return swap_in_mem(empty_space, i);
-        } else {
-            printf("Page %d wasn't found in secondary memory!\n", page);
-            return 0;
+            swap_in_mem(empty_space, i);
+            return 1;
         }
     }
+
+    printf("Page %d wasn't found in secondary memory!\n", page);
+    return 0;
 }
 
 int swap_in_mem(int prim_position, int secon_position){
     // Swaps in pages from secondary memory into the physical primary memory.
     physical_memory[prim_position][0] = secondary_memory[secon_position][0]; // PID
-    physical_memory[prim_position][1] = secondary_memory[secon_position][2]; // Page
+    physical_memory[prim_position][1] = secondary_memory[secon_position][1]; // Page
     physical_memory[prim_position][2] = 0; // Last used counter
 
     secondary_memory[secon_position][0] = 0; // PID
@@ -102,6 +105,7 @@ int swap_out_mem(int prim_position, int secon_position){
 }
 
 int find_victim(){
+    // TODO: Add mutex in here to avoid race condition.
     int last_used_page[2];
     last_used_page[0] = 0;
     last_used_page[1] = 0;
@@ -113,9 +117,13 @@ int find_victim(){
         }
     }
 
+    printf("Found Victim to move out of memory: PID: %d, Page: %d, Last Used: %d\n",
+           physical_memory[last_used_page[0]][0],  physical_memory[last_used_page[0]][1],
+           last_used_page[1]);
+
     for (int i = 0; i < SECONDARY_SIZE; i++) {
-        if(secondary_memory[i][0] == NULL){
-            swap_out_mem(last_used_page[0], i)
+        if(secondary_memory[i][0] == 0){
+            swap_out_mem(last_used_page[0], i);
         }
     }
 
@@ -158,25 +166,25 @@ int main() {
 
     // Requests the pages.
     while(1) {
-        sleep(3);
-
-        printf("Virtual Memory:\n");
+        /*printf("Virtual Memory:\n");
         printf("PID - Page:\n");
         for (int i = 0; i < VIRTUAL_SIZE; i++) {
-            printf(" %d -  %d\n", virtual_memory[i][0], virtual_memory[i][1]);
-        }
+            printf(" %d - %d\n", virtual_memory[i][0], virtual_memory[i][1]);
+        }*/
 
         printf("Physical Memory:\n");
         printf("PID - Page:\n");
         for (int i = 0; i < PHYSICAL_SIZE; i++) {
-            printf(" %d -  %d\n", physical_memory[i][0], physical_memory[i][1]);
+            printf(" %d - %d\n", physical_memory[i][0], physical_memory[i][1]);
         }
 
         printf("Secondary Memory(HD):\n");
         printf("PID - Page:\n");
-        for (int i = 0; i < SECONDARY_SIZE; i++) {
+        for (int i = 0; i < 30; i++) {
             printf(" %d - %d\n", secondary_memory[i][0], secondary_memory[i][1]);
         }
+
+        sleep(3);
     }
     (void) pthread_join(processes[0], NULL);
 
