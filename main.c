@@ -20,33 +20,51 @@ int virtual_memory[VIRTUAL_SIZE][2]; // 1 MB > 128 pages
 int physical_memory[PHYSICAL_SIZE][3]; // 64k > 8 pgs
 int secondary_memory[SECONDARY_SIZE][2];
 
-int indexing_table[VIRTUAL_SIZE][VIRTUAL_SIZE];
+int indexing_table[VIRTUAL_SIZE][3]; // Contains the translation of addresses from virtual to physical memory.
 
 // Functions:
-void mmu_create(int pid, int pages){
-    // Virtual Memory
+void mmu_create_pages(int pid, int pages){
     for (int i = 0; i < pages; i++) {
+        // Virtual Memory
         for (int j = 0; j < VIRTUAL_SIZE; j++) {
             if(virtual_memory[j][0] == 0){
                 virtual_memory[j][0] = pid; // Process ID
-                virtual_memory[j][1] = i; // Page ID
+                virtual_memory[j][1] = i; // Page address in virtual mem.
                 break;
             }
         }
-    }
-    // Secondary Memory
-    for (int i = 0; i < pages; i++) {
+        // Secondary Memory
         for (int j = 0; j < SECONDARY_SIZE; j++) {
             if(secondary_memory[j][0] == 0){
                 secondary_memory[j][0] = pid; // Process ID
-                secondary_memory[j][1] = i; // Page ID  -- + RELOCATION_REGISTER
+                secondary_memory[j][1] = i + RELOCATION_REGISTER; //Page address in physical mem.
+                break;
+            }
+        }
+        // Creating index address table
+        for (int j = 0; j < VIRTUAL_SIZE; j++) {
+            if(indexing_table[j][0] == 0){
+                indexing_table[j][0] = pid; // Process ID
+                indexing_table[j][1] = i; // Page address in virtual mem.
+                indexing_table[j][2] = i + RELOCATION_REGISTER; // Page address in physical mem.
                 break;
             }
         }
     }
 }
 
+int translate_page_address(int pid, int page){
+    for (int i = 0; i < VIRTUAL_SIZE; ++i) {
+        if(indexing_table[i][0] == pid && indexing_table[i][1] == page){
+            return indexing_table[i][2];
+        }
+    }
+}
+
 int mmu_load(int pid, int page){
+
+    page = translate_page_address(pid, page);
+
     // Search physical memory for the page
     for (int i = 0; i < PHYSICAL_SIZE; ++i) {
         if(physical_memory[i][0] == pid && physical_memory[i][1] == page){
@@ -138,7 +156,7 @@ int *process(void *id) {
     //int pid = *((int *) id); // TODO: this is causing segmentation fault, SOLVE THIS!
     //printf("%d\n", pid);
 
-    mmu_create(1, pages);
+    mmu_create_pages(1, pages);
 
     srand(time(NULL));
 
@@ -186,7 +204,7 @@ int main() {
 
         sleep(3);
     }
-    (void) pthread_join(processes[0], NULL);
+    //(void) pthread_join(processes[0], NULL);
 
     return 0;
 }
